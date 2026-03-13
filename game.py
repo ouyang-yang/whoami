@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import random
 from PIL import Image
+from difflib import SequenceMatcher
 
 # 設定網頁標題
 st.set_page_config(page_title="認人大賽", page_icon="🏆")
@@ -39,6 +40,15 @@ def next_question():
         # 避免抽到跟上一題一樣的人
         new_name = random.choice(people_names)
         st.session_state.current_name = new_name
+        
+        # --- 傲嬌提示清單 ---
+
+insults = [
+    "你怎麼可以打錯名字呢嘖嘖...",
+    "雖然音是對的，但字錯了啦！",
+    "字打錯了喔，你的朋友在哭泣...",
+    "把學長的名字打錯值得一張策進表喔"
+]
 
 # 4. UI 介面
 st.title("🏆 認人大賽")
@@ -63,13 +73,25 @@ else:
         user_input = st.text_input("輸入名字：", placeholder="打完後按 Enter 或提交按鈕")
         submit_clicked = st.form_submit_button("提交答案")
 
-    if submit_clicked:
-        if user_input.strip().lower() == current_name.lower():
+if submit_clicked:
+        user_guess = user_input.strip()
+        
+        # 計算相似度
+        similarity = SequenceMatcher(None, user_guess, current_name).ratio()
+
+        if user_guess == current_name:
             st.success(f"✅ 答對了！他是 **{current_name}**")
             st.session_state.score += 10
             next_question()
             st.rerun()
+        
+        elif similarity >= 0.6:  # 相似度門檻（可調整 0.0 ~ 1.0）
+            # 觸發提示，但不換題 (不執行 next_question)
+            st.warning(f"🤫 {random.choice(insults)} (猜測: {user_guess})")
+            
         else:
-            st.error(f"❌ 逼逼！他是 **{current_name}**")
+            st.error(f"❌ 猜錯囉！他是 **{current_name}**")
+            # 扣分（如果你想更硬核的話可以加）
             next_question()
             st.rerun()
+        
