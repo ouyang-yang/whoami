@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import random
 from PIL import Image
+from pypinyin import pinyin, Style
 from difflib import SequenceMatcher
 
 # 設定網頁標題
@@ -41,8 +42,16 @@ def next_question():
         new_name = random.choice(people_names)
         st.session_state.current_name = new_name
         
-        # --- 傲嬌提示清單 ---
-
+# 定義判斷讀音是否相同的函數
+def is_same_pronunciation(str1, str2):
+    if not str1 or not str2:
+        return False
+    # 轉為拼音清單（不含聲調），例如 "小明" -> ['xiao', 'ming']
+    p1 = [item[0] for item in pinyin(str1, style=Style.NORMAL)]
+    p2 = [item[0] for item in pinyin(str2, style=Style.NORMAL)]
+    return p1 == p2
+        
+# --- 嘲諷清單 ---
 insults = [
     "你怎麼可以打錯名字呢嘖嘖...",
     "雖然音是對的，但字錯了啦！",
@@ -50,7 +59,7 @@ insults = [
     "把學長的名字打錯值得一張策進表喔"
 ]
 
-# --- 增加讚美清單 ---
+# --- 好棒棒清單 ---
 kudos = [
     "✅ 太強了！竟然連這都認得出來！",
     "✅ 沒錯！就是 **{}**。",
@@ -84,37 +93,30 @@ else:
         submit_clicked = st.form_submit_button("提交答案")
 
 if submit_clicked:
-        user_guess = user_input.strip()
-        
-        # 計算相似度
-        similarity = SequenceMatcher(None, user_guess, current_name).ratio()
+    user_guess = user_input.strip()
+    correct_name = st.session_state.current_name
+    
+    # 1. 檢查字是否完全正確
+    if user_guess == correct_name:
+        st.success(f"✅ 沒錯！他就是 **{correct_name}**")
+        if random.random() < 0.2: st.balloons()
+        st.session_state.score += 10
+        time.sleep(1.2)
+        next_question()
+        st.rerun()
 
-        if user_guess == current_name:
-            # 1. 隨機挑選讚美詞
-            success_msg = random.choice(kudos).format(current_name)
-            st.success(success_msg)
-            
-            # 2. 設定氣球觸發機率 (1/5 的機率，即 20%)
-            # random.random() 會產生 0.0 到 1.0 之間的浮點數
-            if random.random() < 0.2: 
-                st.balloons()
-            
-            st.session_state.score += 10
-            
-            # 稍微停頓讓玩家看清楚訊息
-            import time
-            time.sleep(1.2) 
-            
-            next_question()
-            st.rerun()
-        
-        elif similarity >= 0.6:  # 相似度門檻（可調整 0.0 ~ 1.0）
-            # 觸發提示，但不換題 (不執行 next_question)
-            st.warning(f"🤫 {random.choice(insults)} (猜測: {user_guess})")
-            
-        else:
-            st.error(f"❌ 猜錯囉！他是 **{current_name}**")
-            # 扣分（如果你想更硬核的話可以加）
-            next_question()
-            st.rerun()
+    # 2. 檢查音是否正確 (文字錯但音對)
+    elif is_same_pronunciation(user_guess, correct_name):
+        st.success(f"勉強算你對啦，他是 **{correct_name}** (雖然你字打錯了嘖嘖)")
+        # 音對了給比較少分，或是照樣給分也可以
+        st.session_state.score += 5
+
+        next_question()
+        st.rerun()
+
+    # 3. 答錯
+    else:
+        st.error(f"❌ 猜錯囉！他是 **{correct_name}**")
+        next_question()
+        st.rerun()
         
