@@ -26,22 +26,38 @@ def get_people_data():
 
 people_dict = get_people_data()
 people_names = list(people_dict.keys())
+total_people_count = len(people_names)
 
-# 2. 初始化遊戲狀態
-if 'score' not in st.session_state:
-    st.session_state.score = 0
+# --- 1. 初始化狀態 ---
+if 'score' not in st.session_state: st.session_state.score = 0
+if 'correct_count' not in st.session_state: st.session_state.correct_count = 0  # 名字全對的計數
+if 'finished_one_round' not in st.session_state: st.session_state.finished_one_round = False
+
+# 待考驗清單
+if 'remaining_people' not in st.session_state:
+    st.session_state.remaining_people = list(people_names)
+    random.shuffle(st.session_state.remaining_people)
+
+# 當前要猜的人
 if 'current_name' not in st.session_state:
-    if people_names:
-        st.session_state.current_name = random.choice(people_names)
+    if st.session_state.remaining_people:
+        st.session_state.current_name = st.session_state.remaining_people.pop()
     else:
         st.session_state.current_name = None
 
-# 3. 定義換題函數
+# --- 2. 邏輯函數 ---
+def is_same_pronunciation(str1, str2):
+    if not str1 or not str2: return False
+    p1 = [item[0] for item in pinyin(str1, style=Style.NORMAL)]
+    p2 = [item[0] for item in pinyin(str2, style=Style.NORMAL)]
+    return p1 == p2
+
 def next_question():
-    if people_names:
-        # 避免抽到跟上一題一樣的人
-        new_name = random.choice(people_names)
-        st.session_state.current_name = new_name
+    if st.session_state.remaining_people:
+        st.session_state.current_name = st.session_state.remaining_people.pop()
+    else:
+        st.session_state.current_name = None
+        st.session_state.finished_one_round = True  # 標記整輪結束
         
 # 定義判斷讀音是否相同的函數
 def is_same_pronunciation(str1, str2):
@@ -72,52 +88,65 @@ kudos = [
 
 # 4. UI 介面
 st.title("🏆 認人大賽")
-st.write(f"### 目前分數： :orange[{st.session_state.score}]")
 
-if not st.session_state.current_name:
-    st.error("❌ 找不到照片！請確認 'people' 資料夾內有 .jpg 或 .png 檔案。")
-else:
-    # 顯示照片
-    current_name = st.session_state.current_name
-    file_name = people_dict[current_name]
-    img_path = os.path.join(IMAGE_FOLDER, file_name)
+# 判斷是否要顯示結算畫面
+if st.session_state.finished_one_round:
+    st.balloons()
+    st.header("🎊 挑戰結束！結算時間 🎊")
+    st.divider()
     
-    try:
-        img = Image.open(img_path)
-        st.image(img, caption="猜猜我是誰？", use_container_width=True)
-    except Exception as e:
-        st.error(f"無法讀取圖片: {file_name}")
+    # 你的結算需求
+    st.subheader(f"📚 題庫共有： {total_people_count} 人")
+    st.subheader(f"✅ 你總共認出（名字全對）： :green[{st.session_state.correct_count}] 人")
+    st.write(f"💰 最終得分： {st.session_state.score}")
+    
+    if st.session_state.correct_count == total_people_count:
+        st.success("🎉 太神啦！你是認人的神吧？全部都對！比賽當天就靠你了！")
+    
+    if st.button("再玩一輪"):
+        # 重置所有狀態
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.rerun()
 
-    # 輸入介面
-    with st.form(key='my_form', clear_on_submit=True):
-        user_input = st.text_input("輸入名字：", placeholder="打完後按 Enter 或提交按鈕")
+elif not st.session_state.current_name:
+    st.error("❌ 找不到照片！請檢查 'people' 資料夾。")
+
+else:
+    # 遊戲進行中的介面
+    st.write(f"### 目前分數： :orange[{st.session_state.score}]")
+    st.write(f"📊 進度： 第 {total_people_count - len(st.session_state.remaining_people)} / {total_people_count} 人")
+    
+    current_name = st.session_state.current_name
+    img_path = os.path.join(IMAGE_FOLDER, people_dict[current_name])
+    st.image(Image.open(img_path), use_container_width=True)
+
+    with st.form(key='quiz_form', clear_on_submit=True):
+        user_input = st.text_input("猜猜我是誰？")
         submit_clicked = st.form_submit_button("提交答案")
 
-if submit_clicked:
-    user_guess = user_input.strip()
-    correct_name = st.session_state.current_name
-    
-    # 1. 檢查字是否完全正確
-    if user_guess == correct_name:
-        st.success(f"✅ 沒錯！他就是 **{correct_name}**")
-        if random.random() < 0.2: st.balloons()
-        st.session_state.score += 10
-        time.sleep(1.2)
-        next_question()
-        st.rerun()
-
-    # 2. 檢查音是否正確 (文字錯但音對)
-    elif is_same_pronunciation(user_guess, correct_name):
-        st.success(f"勉強算你對啦，他是 **{correct_name}** (雖然你字打錯了嘖嘖)")
-        # 音對了給比較少分，或是照樣給分也可以
-        st.session_state.score += 5
-        time.sleep(2.0)
-        next_question()
-        st.rerun()
-
-    # 3. 答錯
-    else:
-        st.error(f"❌ 猜錯囉！他是 **{correct_name}**")
-        next_question()
-        st.rerun()
+    if submit_clicked:
+        user_guess = user_input.strip()
         
+        # 1. 字完全對
+        if user_guess == current_name:
+            st.success(f"✅ BINGO！他是 **{current_name}**")
+            st.session_state.correct_count += 1  # 增加全對計數
+            st.session_state.score += 10
+            time.sleep(1.2)
+            next_question()
+            st.rerun()
+        
+        # 2. 音對了
+        elif is_same_pronunciation(user_guess, current_name):
+            st.info(f"🎊 勉強算你對啦，他是 **{current_name}** (雖然你字打錯了嘖嘖)")
+            st.session_state.score += 5 # 音對給 5 分
+            time.sleep(2.0)
+            next_question()
+            st.rerun()
+            
+        # 3. 錯得離譜
+        else:
+            st.error(f"❌ 猜錯囉！他是 **{current_name}**")
+            next_question()
+            st.rerun()
