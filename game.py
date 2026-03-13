@@ -50,6 +50,16 @@ insults = [
     "把學長的名字打錯值得一張策進表喔"
 ]
 
+# --- 增加讚美清單 ---
+kudos = [
+    "✅ 太強了！竟然連這都認得出來！",
+    "✅ 沒錯！就是 **{}**。",
+    "✅ 認人比賽當天也會答對的吧！",
+    "✅ 叮咚叮咚！答對！",
+    "✅ 這麼模糊你也認得出來？你是人臉辨識機吧！",
+    "✅ 葛萊芬多加10分！"
+]
+
 # 4. UI 介面
 st.title("🏆 認人大賽")
 st.write(f"### 目前分數： :orange[{st.session_state.score}]")
@@ -80,8 +90,21 @@ if submit_clicked:
         similarity = SequenceMatcher(None, user_guess, current_name).ratio()
 
         if user_guess == current_name:
-            st.success(f"✅ 答對了！他是 **{current_name}**")
+            # 1. 隨機挑選讚美詞
+            success_msg = random.choice(kudos).format(current_name)
+            st.success(success_msg)
+            
+            # 2. 設定氣球觸發機率 (1/5 的機率，即 20%)
+            # random.random() 會產生 0.0 到 1.0 之間的浮點數
+            if random.random() < 0.2: 
+                st.balloons()
+            
             st.session_state.score += 10
+            
+            # 稍微停頓讓玩家看清楚訊息
+            import time
+            time.sleep(1.2) 
+            
             next_question()
             st.rerun()
         
