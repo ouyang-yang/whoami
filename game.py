@@ -13,7 +13,15 @@ if 'current_person' not in st.session_state:
     st.session_state.current_person = None
 if 'game_over' not in st.session_state:
     st.session_state.game_over = False
-    
+ 
+# 在程式最上方加入這段來檢查
+st.write(f"目前的執行目錄: {os.getcwd()}")
+if os.path.exists('people'):
+    st.write("✅ 找到了 'people' 資料夾")
+    st.write(f"裡面的檔案有: {os.listdir('people')}")
+else:
+    st.error("❌ 找不到 'people' 資料夾！請確認資料夾是否與 app.py 在同一層。")
+        
 IMAGE_FOLDER = 'people'
 
 # 取得所有人名（從檔名）
