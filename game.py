@@ -73,8 +73,3 @@ else:
             st.error(f"❌ 逼逼！他是 **{current_name}**")
             next_question()
             st.rerun()
-
-# 輔助工具（僅在測試時使用，正式發布可刪除）
-with st.expander("🛠️ 偵錯資訊"):
-    st.write(f"資料夾內偵測到的人數: {len(people_names)}")
-    st.write(f"名單: {people_names}")
