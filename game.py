@@ -6,80 +6,72 @@ from PIL import Image
 # 設定網頁標題
 st.set_page_config(page_title="認人大賽", page_icon="🏆")
 
-# 1. 初始化遊戲狀態 (只在第一次執行時執行)
+# 1. 取得所有人名與對應的檔案完整路徑
+@st.cache_data
+def get_people_data():
+    data = {}
+    if os.path.exists(IMAGE_FOLDER):
+        for f in os.listdir(IMAGE_FOLDER):
+            # 支援多種副檔名，且不論大小寫 (.jpg, .JPG, .png...)
+            if f.lower().endswith(('.jpg', '.png', '.jpeg')):
+                name = os.path.splitext(f)[0]
+                data[name] = f
+    return data
+
+people_dict = get_people_data()
+people_names = list(people_dict.keys())
+
+# 2. 初始化遊戲狀態
 if 'score' not in st.session_state:
     st.session_state.score = 0
-if 'current_person' not in st.session_state:
-    st.session_state.current_person = None
-if 'game_over' not in st.session_state:
-    st.session_state.game_over = False
- 
-# 在程式最上方加入這段來檢查
-st.write(f"目前的執行目錄: {os.getcwd()}")
-if os.path.exists('people'):
-    st.write("✅ 找到了 'people' 資料夾")
-    st.write(f"裡面的檔案有: {os.listdir('people')}")
-else:
-    st.error("❌ 找不到 'people' 資料夾！請確認資料夾是否與 app.py 在同一層。")
-        
-IMAGE_FOLDER = 'people'
+if 'current_name' not in st.session_state:
+    if people_names:
+        st.session_state.current_name = random.choice(people_names)
+    else:
+        st.session_state.current_name = None
 
-# 取得所有人名（從檔名）
-@st.cache_data # 快取名單，避免每次重新讀取資料夾
-def get_people_list():
-    if not os.path.exists(IMAGE_FOLDER):
-        return []
-    return [f.split('.')[0] for f in os.listdir(IMAGE_FOLDER) if f.endswith(('.jpg', '.png', '.jpeg'))]
-
-people = get_people_list()
-
-# 2. 遊戲邏輯函數
+# 3. 定義換題函數
 def next_question():
-    if people:
-        st.session_state.current_person = random.choice(people)
-    else:
-        st.error("找不到照片，請檢查 'people' 資料夾！")
+    if people_names:
+        # 避免抽到跟上一題一樣的人
+        new_name = random.choice(people_names)
+        st.session_state.current_name = new_name
 
-# 如果還沒有題目，選一個
-if st.session_state.current_person is None:
-    next_question()
-
-# 3. UI 介面設計
+# 4. UI 介面
 st.title("🏆 認人大賽")
-st.write(f"### 目前分數： **{st.session_state.score}**")
+st.write(f"### 目前分數： :orange[{st.session_state.score}]")
 
-# 顯示照片
-if st.session_state.current_person:
-    # 尋找正確副檔名
-    img_path = ""
-    for ext in ['.jpg', '.png', '.jpeg']:
-        if os.path.exists(os.path.join(IMAGE_FOLDER, f"{st.session_state.current_person}{ext}")):
-            img_path = os.path.join(IMAGE_FOLDER, f"{st.session_state.current_person}{ext}")
-            break
+if not st.session_state.current_name:
+    st.error("❌ 找不到照片！請確認 'people' 資料夾內有 .jpg 或 .png 檔案。")
+else:
+    # 顯示照片
+    current_name = st.session_state.current_name
+    file_name = people_dict[current_name]
+    img_path = os.path.join(IMAGE_FOLDER, file_name)
     
-    if img_path:
+    try:
         img = Image.open(img_path)
-        st.image(img, caption="猜猜我是誰？", width=400)
+        st.image(img, caption="猜猜我是誰？", use_container_width=True)
+    except Exception as e:
+        st.error(f"無法讀取圖片: {file_name}")
 
-# 使用 Form 讓輸入更流暢
-with st.form(key='answer_form', clear_on_submit=True):
-    user_input = st.text_input("輸入名字後按 Enter 或點擊提交：")
-    submit_button = st.form_submit_button(label='提交答案')
+    # 輸入介面
+    with st.form(key='my_form', clear_on_submit=True):
+        user_input = st.text_input("輸入名字：", placeholder="打完後按 Enter 或提交按鈕")
+        submit_clicked = st.form_submit_button("提交答案")
 
-if submit_button:
-    if user_input.strip().lower() == st.session_state.current_person.lower():
-        st.success(f"✅ 答對了！是 {st.session_state.current_person}")
-        st.session_state.score += 10
-        next_question()
-        st.rerun() # 立即重新整理顯示下一題
-    else:
-        st.error(f"❌ 蛤怎麼會！這明明就是 {st.session_state.current_person}")
-        # 如果想猜錯也下一題：
-        next_question()
-        st.rerun()
+    if submit_clicked:
+        if user_input.strip().lower() == current_name.lower():
+            st.success(f"✅ 答對了！他是 **{current_name}**")
+            st.session_state.score += 10
+            next_question()
+            st.rerun()
+        else:
+            st.error(f"❌ 逼逼！他是 **{current_name}**")
+            next_question()
+            st.rerun()
 
-# 重新開始按鈕
-if st.button("重置分數"):
-    st.session_state.score = 0
-    next_question()
-    st.rerun()
+# 輔助工具（僅在測試時使用，正式發布可刪除）
+with st.expander("🛠️ 偵錯資訊"):
+    st.write(f"資料夾內偵測到的人數: {len(people_names)}")
+    st.write(f"名單: {people_names}")
