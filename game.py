@@ -6,6 +6,9 @@ from PIL import Image
 # 設定網頁標題
 st.set_page_config(page_title="認人大賽", page_icon="🏆")
 
+# 設定資料夾路徑
+IMAGE_FOLDER = 'people'
+
 # 1. 取得所有人名與對應的檔案完整路徑
 @st.cache_data
 def get_people_data():
