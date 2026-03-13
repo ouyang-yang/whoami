@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import random
+import time
 from PIL import Image
 from pypinyin import pinyin, Style
 from difflib import SequenceMatcher
@@ -110,7 +111,7 @@ if submit_clicked:
         st.success(f"勉強算你對啦，他是 **{correct_name}** (雖然你字打錯了嘖嘖)")
         # 音對了給比較少分，或是照樣給分也可以
         st.session_state.score += 5
-
+        time.sleep(2.0)
         next_question()
         st.rerun()
 
