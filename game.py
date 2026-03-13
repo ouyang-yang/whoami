@@ -13,8 +13,8 @@ if 'current_person' not in st.session_state:
     st.session_state.current_person = None
 if 'game_over' not in st.session_state:
     st.session_state.game_over = False
-
-IMAGE_FOLDER = '/Users/ouyangxuan/Documents/北宜路/code/people'
+    
+IMAGE_FOLDER = 'people'
 
 # 取得所有人名（從檔名）
 @st.cache_data # 快取名單，避免每次重新讀取資料夾
